@@ -2,34 +2,35 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>終極 CSP 踩地雷 AI (防卡死順暢版)</title>
+    <title>終極 CSP 踩地雷 AI (極速視角版)</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             display: flex; flex-direction: column; align-items: center;
-            background-color: #1e272e; color: #ecf0f1; margin: 0; padding: 20px;
+            background-color: #1e272e; color: #ecf0f1; margin: 0; padding: 15px;
+            height: 100vh; box-sizing: border-box; overflow: hidden;
         }
-        h1 { margin-bottom: 5px; color: #ecf0f1; text-shadow: 2px 2px 4px #000; }
+        h1 { margin-bottom: 5px; margin-top: 0; color: #ecf0f1; text-shadow: 2px 2px 4px #000; font-size: 24px; }
         
         .panel {
-            background: #2f3640; padding: 15px 25px; border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.6); margin-bottom: 15px;
-            width: 100%; max-width: 850px; border: 1px solid #718093;
+            background: #2f3640; padding: 12px 20px; border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.6); margin-bottom: 10px;
+            width: 100%; max-width: 900px; border: 1px solid #718093;
         }
         .section {
-            display: flex; flex-wrap: wrap; gap: 15px; align-items: center; margin-bottom: 10px;
+            display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 8px;
         }
         .section:last-child { margin-bottom: 0; }
         
-        label { font-weight: bold; font-size: 14px; display: flex; align-items: center; gap: 5px; }
+        label { font-weight: bold; font-size: 13px; display: flex; align-items: center; gap: 5px; }
         input[type="number"] {
-            width: 50px; padding: 5px; border: none; border-radius: 4px;
+            width: 45px; padding: 4px; border: none; border-radius: 4px;
             text-align: center; background: #ecf0f1; color: #2c3e50; font-weight: bold;
         }
         input[type="range"] { cursor: pointer; }
         
         button {
-            padding: 8px 14px; font-size: 14px; font-weight: bold; cursor: pointer;
+            padding: 6px 12px; font-size: 13px; font-weight: bold; cursor: pointer;
             border: none; border-radius: 4px; transition: transform 0.1s, filter 0.2s;
         }
         button:active { transform: scale(0.95); }
@@ -42,31 +43,45 @@
         #btn-loop { background-color: #00a8ff; color: white; }
         #btn-custom { background-color: #e84118; color: white; }
         
+        #btn-camera { background-color: #7f8fa6; color: white; border: 2px solid #353b48; }
+        #btn-camera.active { background-color: #9c88ff; box-shadow: 0 0 10px #9c88ff; border-color: #fff; }
+        
         .dashboard {
             display: flex; justify-content: space-between; background: #192a56;
-            color: #4cd137; padding: 10px 20px; border-radius: 6px;
-            font-size: 20px; font-family: monospace; font-weight: bold;
-            margin-bottom: 15px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.8); border: 1px solid #000;
+            color: #4cd137; padding: 8px 15px; border-radius: 6px;
+            font-size: 18px; font-family: monospace; font-weight: bold;
+            margin-bottom: 10px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.8); border: 1px solid #000;
         }
 
         #stats-panel {
-            display: none; background: #44bd32; color: white; padding: 15px;
-            border-radius: 6px; margin-bottom: 15px; font-family: monospace; font-size: 15px;
-            width: 100%; max-width: 820px; box-shadow: 0 4px 6px rgba(0,0,0,0.5); border: 2px solid #fff;
+            display: none; background: #44bd32; color: white; padding: 10px;
+            border-radius: 6px; margin-bottom: 10px; font-family: monospace; font-size: 13px;
+            width: 100%; max-width: 900px; box-shadow: 0 4px 6px rgba(0,0,0,0.5); border: 2px solid #fff;
         }
         #stats-panel.loss { background: #c23616; }
         .stats-grid {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-            gap: 10px; margin-top: 10px;
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 8px; margin-top: 8px;
         }
-        .stat-item { background: rgba(0,0,0,0.25); padding: 10px; border-radius: 4px; text-align: center; }
-        .stat-val { display: block; font-size: 18px; font-weight: bold; margin-top: 5px; color: #fbc531; }
+        .stat-item { background: rgba(0,0,0,0.25); padding: 8px; border-radius: 4px; text-align: center; }
+        .stat-val { display: block; font-size: 16px; font-weight: bold; margin-top: 4px; color: #fbc531; }
         
-        .board-container {
-            max-width: 100%; overflow: auto; padding: 8px; background-color: #7f8fa6;
-            border-radius: 6px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 3px solid #353b48;
+        /* 視角與地圖外框設定 */
+        .board-viewport {
+            width: 100%; max-width: 95vw; flex-grow: 1; overflow: auto; 
+            background-color: #2f3640; border-radius: 6px; 
+            box-shadow: inset 0 10px 25px rgba(0,0,0,0.8); border: 3px solid #718093;
+            position: relative; scroll-behavior: auto;
         }
-        #board { display: grid; gap: 2px; background-color: #353b48; user-select: none; margin: 0 auto; width: max-content;}
+        
+        #board-wrapper {
+            transform-origin: top left;
+            transition: transform 0.05s linear; /* 讓縮放平滑 */
+            padding: 20px; /* 預留邊界 */
+            width: max-content; height: max-content;
+        }
+
+        #board { display: grid; gap: 2px; background-color: #353b48; user-select: none; }
         
         .cell {
             width: 26px; height: 26px; background-color: #dcdde1; border-radius: 2px;
@@ -75,9 +90,7 @@
             box-shadow: inset -2px -2px 0px rgba(0,0,0,0.3), inset 2px 2px 0px rgba(255,255,255,0.9);
         }
         .cell:hover { background-color: #f5f6fa; }
-        .cell.revealed {
-            background-color: #bdc3c7; box-shadow: inset 1px 1px 3px rgba(0,0,0,0.2); cursor: default;
-        }
+        .cell.revealed { background-color: #bdc3c7; box-shadow: inset 1px 1px 3px rgba(0,0,0,0.2); cursor: default; }
         .cell.mine { background-color: #e84118; color: white; box-shadow: none; }
         .cell.flagged { background-color: #fbc531; box-shadow: inset -2px -2px 0px rgba(0,0,0,0.3); }
         
@@ -88,30 +101,35 @@
 </head>
 <body>
 
-    <h1>Minesweeper Pro AI (防卡死架構)</h1>
+    <h1>Minesweeper Extreme Pro AI</h1>
     
     <div class="panel">
         <div class="section">
             <label>難度：</label>
-            <button class="btn-mode active" onclick="changeDifficulty('easy', this)">初級 (10x10)</button>
-            <button class="btn-mode" onclick="changeDifficulty('medium', this)">中級 (16x16)</button>
-            <button class="btn-mode" onclick="changeDifficulty('hard', this)">高級 (30x16)</button>
+            <button class="btn-mode active" onclick="changeDifficulty('easy', this)">初級</button>
+            <button class="btn-mode" onclick="changeDifficulty('medium', this)">中級</button>
+            <button class="btn-mode" onclick="changeDifficulty('hard', this)">高級</button>
+            <label style="margin-left: 10px;">自訂：</label>
+            W <input type="number" id="custom-w" value="50" min="5" max="200">
+            H <input type="number" id="custom-h" value="50" min="5" max="200">
+            雷 <input type="number" id="custom-m" value="500" min="1" max="9999">
+            <button id="btn-custom" onclick="generateCustom()">生成</button>
         </div>
-        <div class="section">
-            <label>自訂地圖：</label>
-            寬 <input type="number" id="custom-w" value="30" min="5" max="99">
-            高 <input type="number" id="custom-h" value="16" min="5" max="99">
-            雷 <input type="number" id="custom-m" value="99" min="1" max="999">
-            <button id="btn-custom" onclick="generateCustom()">生成地圖</button>
-        </div>
-        <div class="section" style="margin-top: 10px; border-top: 1px solid #718093; padding-top: 15px;">
-            <label>AI 核心：</label>
+        <div class="section" style="border-top: 1px solid #718093; padding-top: 10px;">
             <button id="btn-step">推導一步 (Step)</button>
             <button id="btn-loop">自動解題 (Auto Play)</button>
-            <label style="margin-left:15px; color:#fbc531;">
-                解題神經流速：
-                <input type="range" id="speed-slider" min="1" max="101" value="90" style="width: 150px;">
-                <span id="speed-text">22ms</span>
+            <button id="btn-camera" class="active" onclick="toggleCamera()">🎥 視角跟隨：開啟</button>
+            
+            <label style="margin-left:auto; color:#fbc531;">
+                AI 運算超頻：
+                <input type="range" id="speed-slider" min="1" max="200" value="90" style="width: 120px;">
+                <span id="speed-text" style="display:inline-block; width: 65px;">22ms</span>
+            </label>
+            
+            <label style="color:#00a8ff;">
+                地圖縮放：
+                <input type="range" id="zoom-slider" min="10" max="200" value="100" style="width: 100px;">
+                <span id="zoom-text" style="display:inline-block; width: 45px;">100%</span>
             </label>
         </div>
     </div>
@@ -128,25 +146,73 @@
         </div>
     </div>
     
-    <div class="panel" style="padding: 0; width: 100%; max-width: 850px; border:none; background:transparent; box-shadow:none;">
+    <div class="panel" style="padding: 0; width: 100%; max-width: 900px; border:none; background:transparent; box-shadow:none;">
         <div class="dashboard">
             <div id="mine-count">剩餘地雷: 10</div>
             <div id="timer">0.0s</div>
         </div>
     </div>
     
-    <div class="board-container">
-        <div id="board"></div>
+    <div class="board-viewport" id="viewport">
+        <div id="board-wrapper">
+            <div id="board"></div>
+        </div>
     </div>
 
 <script>
 let ROWS = 10; let COLS = 10; let MINES = 10;
 let grid = []; let gameOver = false; let gameWon = false; let isFirstClick = true;
-let loopTimeout = null;
+let loopTimeout = null; let isAutoPlaying = false;
 let startTime = null; let timerInterval = null; let elapsedTime = 0;
+let cameraFollow = true; // 視角跟隨狀態
 
 let countLeftClicks = 0; let countRightClicks = 0; let countGuesses = 0;
 let calculated3BV = 0; let revealed3BVGroups = new Set();
+
+// UI 綁定
+const zoomSlider = document.getElementById('zoom-slider');
+const zoomText = document.getElementById('zoom-text');
+const boardWrapper = document.getElementById('board-wrapper');
+const viewport = document.getElementById('viewport');
+const speedSlider = document.getElementById('speed-slider');
+const speedText = document.getElementById('speed-text');
+const btnLoop = document.getElementById('btn-loop');
+const btnCamera = document.getElementById('btn-camera');
+
+zoomSlider.addEventListener('input', (e) => {
+    const val = e.target.value;
+    zoomText.innerText = `${val}%`;
+    boardWrapper.style.transform = `scale(${val / 100})`;
+});
+
+speedSlider.addEventListener('input', () => {
+    const val = parseInt(speedSlider.value);
+    if (val <= 100) speedText.innerText = `${Math.floor(2000 / val)}ms`;
+    else if (val < 200) speedText.innerText = `加速 x${val - 100}`;
+    else speedText.innerText = `極速 MAX`;
+});
+
+function toggleCamera() {
+    cameraFollow = !cameraFollow;
+    if (cameraFollow) {
+        btnCamera.innerText = "🎥 視角跟隨：開啟";
+        btnCamera.classList.add('active');
+    } else {
+        btnCamera.innerText = "🎥 視角跟隨：關閉";
+        btnCamera.classList.remove('active');
+        // 觸發安全煞車：關閉視角時，自動停止 AI
+        if (isAutoPlaying) stopAutoPlay();
+    }
+}
+
+function scrollToCell(r, c) {
+    if (!cameraFollow || !isAutoPlaying) return; 
+    const cellEl = document.getElementById(`cell-${r}-${c}`);
+    if (cellEl) {
+        // 使用 auto 避免 smooth 捲動在高速運算下造成的效能卡頓
+        cellEl.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'center' });
+    }
+}
 
 function changeDifficulty(type, btnEl) {
     document.querySelectorAll('.btn-mode').forEach(b => b.classList.remove('active'));
@@ -162,14 +228,13 @@ function generateCustom() {
     const w = parseInt(document.getElementById('custom-w').value);
     const h = parseInt(document.getElementById('custom-h').value);
     const m = parseInt(document.getElementById('custom-m').value);
-    if (isNaN(w) || w < 5 || w > 99 || isNaN(h) || h < 5 || h > 99) return alert("寬高請輸入 5 ~ 99 之間");
+    if (isNaN(w) || w < 5 || w > 300 || isNaN(h) || h < 5 || h > 300) return alert("寬高請輸入 5 ~ 300 之間");
     if (isNaN(m) || m < 1 || m >= w * h) return alert(`地雷數必須介於 1 ~ ${w * h - 1}`);
     COLS = w; ROWS = h; MINES = m; initGame();
 }
 
 function initGame() {
-    stopTimer(); if (loopTimeout) clearTimeout(loopTimeout); loopTimeout = null;
-    document.getElementById('btn-loop').innerText = "自動解題 (Auto Play)";
+    stopAutoPlay(); stopTimer();
     document.getElementById('stats-panel').style.display = 'none';
     
     gameOver = false; gameWon = false; isFirstClick = true; elapsedTime = 0;
@@ -184,17 +249,23 @@ function initGame() {
     boardEl.style.gridTemplateColumns = `repeat(${COLS}, 26px)`;
     boardEl.style.gridTemplateRows = `repeat(${ROWS}, 26px)`;
     
+    // 使用 DocumentFragment 提升超大地圖的生成速度
+    const fragment = document.createDocumentFragment();
     for (let r = 0; r < ROWS; r++) {
         grid[r] = [];
         for (let c = 0; c < COLS; c++) {
             grid[r][c] = { isMine: false, count: 0, isRevealed: false, isFlagged: false, r: r, c: c, bvGroup: null };
             const cellEl = document.createElement('div');
             cellEl.classList.add('cell'); cellEl.id = `cell-${r}-${c}`;
-            cellEl.addEventListener('click', () => { if(!gameOver && !gameWon) { countLeftClicks++; revealCell(r, c); } });
-            cellEl.addEventListener('contextmenu', (e) => { e.preventDefault(); if(!gameOver && !gameWon) { countRightClicks++; flagCell(r, c); } });
-            boardEl.appendChild(cellEl);
+            cellEl.addEventListener('click', () => { if(!gameOver && !gameWon) { countLeftClicks++; revealCell(r, c); checkWinCondition(); } });
+            cellEl.addEventListener('contextmenu', (e) => { e.preventDefault(); if(!gameOver && !gameWon) { countRightClicks++; flagCell(r, c); checkWinCondition(); } });
+            fragment.appendChild(cellEl);
         }
     }
+    boardEl.appendChild(fragment);
+    
+    // 置中鏡頭
+    setTimeout(() => { viewport.scrollTop = 0; viewport.scrollLeft = 0; }, 50);
 }
 
 function startTimer() { startTime = performance.now() - elapsedTime; timerInterval = requestAnimationFrame(updateTimerText); }
@@ -210,7 +281,6 @@ function generateMines(startR, startC) {
     let minesPlaced = 0;
     while (minesPlaced < MINES) {
         let r = Math.floor(Math.random() * ROWS); let c = Math.floor(Math.random() * COLS);
-        // 保證起手點九宮格安全
         if (!grid[r][c].isMine && (Math.abs(r - startR) > 1 || Math.abs(c - startC) > 1)) {
             grid[r][c].isMine = true; minesPlaced++;
         }
@@ -285,7 +355,6 @@ function revealCell(r, c) {
     } else {
         getNeighbors(r, c).forEach(n => { if (!n.isRevealed) revealCell(n.r, n.c); });
     }
-    checkWinCondition();
 }
 
 function flagCell(r, c) {
@@ -307,6 +376,7 @@ function updateStatus() {
 }
 
 function checkWinCondition() {
+    if(gameOver || gameWon) return;
     let unrevealedSafe = 0;
     for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) { if (!grid[r][c].isMine && !grid[r][c].isRevealed) unrevealedSafe++; }
@@ -315,12 +385,10 @@ function checkWinCondition() {
 }
 
 function endGame(isWin) {
-    gameOver = !isWin; gameWon = isWin; stopTimer();
-    if (loopTimeout) clearTimeout(loopTimeout);
+    gameOver = !isWin; gameWon = isWin; stopTimer(); stopAutoPlay();
     
     const finalTimeSec = elapsedTime / 1000;
     document.getElementById('timer').innerText = `${finalTimeSec.toFixed(3)}s`;
-    
     const done3BV = revealed3BVGroups.size;
     const bvs = finalTimeSec > 0 ? (done3BV / finalTimeSec).toFixed(2) : 0;
     
@@ -333,10 +401,10 @@ function endGame(isWin) {
     
     const sPanel = document.getElementById('stats-panel');
     if(isWin) {
-        sPanel.className = ""; document.getElementById('stats-title').innerText = "🎉 Pro AI 完美通關！";
+        sPanel.className = ""; document.getElementById('stats-title').innerText = "🎉 突破天際！完美通關";
         document.getElementById('mine-count').innerText = "🏆 勝利";
     } else {
-        sPanel.className = "loss"; document.getElementById('stats-title').innerText = "💥 陣亡。已盡力做出極限機率選擇。";
+        sPanel.className = "loss"; document.getElementById('stats-title').innerText = "💥 陣亡。(極限機率已盡力)";
         document.getElementById('mine-count').innerText = "💀 陣亡";
     }
     sPanel.style.display = 'block';
@@ -355,49 +423,41 @@ function endGame(isWin) {
 }
 
 // =========================================================
-//   防卡死・終極 AI 引擎 (混合式推導)
+//   AI 核心推理引擎
 // =========================================================
 function aiPlayStep() {
-    if (gameOver || gameWon) return false;
+    if (gameOver || gameWon) return null;
     
-    // 首點盲猜中央
     if (isFirstClick) {
-        countLeftClicks++; revealCell(Math.floor(ROWS/2), Math.floor(COLS/2)); return true;
+        let r = Math.floor(ROWS/2), c = Math.floor(COLS/2);
+        countLeftClicks++; revealCell(r, c); checkWinCondition(); return {r, c};
     }
     
     let totalHidden = 0; let totalFlags = 0;
-    let boundaryCells = []; // 給一/二階邏輯用
-    let frontierMap = new Map();
+    let boundaryCells = []; let frontierMap = new Map();
 
     for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
             let cell = grid[r][c];
             if (!cell.isRevealed && !cell.isFlagged) totalHidden++;
             if (cell.isFlagged) totalFlags++;
-            
             if (cell.isRevealed && cell.count > 0) {
                 let neighbors = getNeighbors(r, c);
                 let hidden = []; let flags = 0;
                 neighbors.forEach(n => {
-                    if (!n.isRevealed && !n.isFlagged) {
-                        hidden.push(n);
-                        frontierMap.set(`${n.r},${n.c}`, n);
-                    }
+                    if (!n.isRevealed && !n.isFlagged) { hidden.push(n); frontierMap.set(`${n.r},${n.c}`, n); }
                     if (n.isFlagged) flags++;
                 });
-                if (hidden.length > 0) {
-                    boundaryCells.push({ cell: cell, hidden: hidden, req: cell.count - flags });
-                }
+                if (hidden.length > 0) boundaryCells.push({ cell: cell, hidden: hidden, req: cell.count - flags });
             }
         }
     }
     
-    // 【絕殺】剩下的雷 = 剩下的格
     if (totalHidden > 0 && totalHidden === (MINES - totalFlags)) {
         for (let r = 0; r < ROWS; r++) {
             for (let c = 0; c < COLS; c++) {
                 if (!grid[r][c].isRevealed && !grid[r][c].isFlagged) {
-                    countRightClicks++; flagCell(r, c); return true;
+                    countRightClicks++; flagCell(r, c); checkWinCondition(); return {r, c};
                 }
             }
         }
@@ -405,20 +465,15 @@ function aiPlayStep() {
 
     let safeMoves = []; let mineMoves = [];
 
-    // 【第一刀】基礎滿足條件 (100% 安全 / 100% 地雷)
+    // 第一刀
     for (let bc of boundaryCells) {
-        if (bc.req === bc.hidden.length) {
-            bc.hidden.forEach(n => { if (!mineMoves.some(m => m.r === n.r && m.c === n.c)) mineMoves.push(n); });
-        }
-        if (bc.req === 0) {
-            bc.hidden.forEach(n => { if (!safeMoves.some(m => m.r === n.r && m.c === n.c)) safeMoves.push(n); });
-        }
+        if (bc.req === bc.hidden.length) { bc.hidden.forEach(n => { if (!mineMoves.some(m => m.r === n.r && m.c === n.c)) mineMoves.push(n); }); }
+        if (bc.req === 0) { bc.hidden.forEach(n => { if (!safeMoves.some(m => m.r === n.r && m.c === n.c)) safeMoves.push(n); }); }
     }
-    if (safeMoves.length > 0) { countLeftClicks++; revealCell(safeMoves[0].r, safeMoves[0].c); return true; }
-    if (mineMoves.length > 0) { countRightClicks++; flagCell(mineMoves[0].r, mineMoves[0].c); return true; }
+    if (safeMoves.length > 0) { countLeftClicks++; revealCell(safeMoves[0].r, safeMoves[0].c); checkWinCondition(); return safeMoves[0]; }
+    if (mineMoves.length > 0) { countRightClicks++; flagCell(mineMoves[0].r, mineMoves[0].c); checkWinCondition(); return mineMoves[0]; }
     
-    // 【第二刀】子集邏輯推論 (1-2-1剋星)
-    // 這能解開 90% 的重疊問題，避免 CSP 計算量過載
+    // 第二刀 (子集推導)
     for (let i = 0; i < boundaryCells.length; i++) {
         for (let j = 0; j < boundaryCells.length; j++) {
             if (i === j) continue;
@@ -427,27 +482,21 @@ function aiPlayStep() {
             
             let isSubset = true;
             for (let nodeA of bcA.hidden) {
-                if (!bcB.hidden.some(nodeB => nodeB.r === nodeA.r && nodeB.c === nodeA.c)) {
-                    isSubset = false; break;
-                }
+                if (!bcB.hidden.some(nodeB => nodeB.r === nodeA.r && nodeB.c === nodeA.c)) { isSubset = false; break; }
             }
             if (isSubset) {
                 let remainingHidden = bcB.hidden.filter(nodeB => !bcA.hidden.some(nodeA => nodeA.r === nodeB.r && nodeA.c === nodeB.c));
                 let remainingReq = bcB.req - bcA.req;
-                if (remainingReq === remainingHidden.length) {
-                    remainingHidden.forEach(m => { if (!mineMoves.some(ex => ex.r === m.r && ex.c === m.c)) mineMoves.push(m); });
-                } else if (remainingReq === 0) {
-                    remainingHidden.forEach(s => { if (!safeMoves.some(ex => ex.r === s.r && ex.c === s.c)) safeMoves.push(s); });
-                }
+                if (remainingReq === remainingHidden.length) remainingHidden.forEach(m => { if (!mineMoves.some(ex => ex.r === m.r && ex.c === m.c)) mineMoves.push(m); });
+                else if (remainingReq === 0) remainingHidden.forEach(s => { if (!safeMoves.some(ex => ex.r === s.r && ex.c === s.c)) safeMoves.push(s); });
             }
         }
     }
-    if (safeMoves.length > 0) { countLeftClicks++; revealCell(safeMoves[0].r, safeMoves[0].c); return true; }
-    if (mineMoves.length > 0) { countRightClicks++; flagCell(mineMoves[0].r, mineMoves[0].c); return true; }
+    if (safeMoves.length > 0) { countLeftClicks++; revealCell(safeMoves[0].r, safeMoves[0].c); checkWinCondition(); return safeMoves[0]; }
+    if (mineMoves.length > 0) { countRightClicks++; flagCell(mineMoves[0].r, mineMoves[0].c); checkWinCondition(); return mineMoves[0]; }
 
-    // 【第三刀】CSP 回溯窮舉 (附帶安全剪枝防卡死)
-    let zones = [];
-    let visitedConstraints = new Set();
+    // 第三刀 (CSP 矩陣分割與回溯)
+    let zones = []; let visitedConstraints = new Set();
     for (let i = 0; i < boundaryCells.length; i++) {
         if (visitedConstraints.has(i)) continue;
         let zoneConstraints = []; let zoneFrontier = new Set(); let queue = [i];
@@ -469,79 +518,53 @@ function aiPlayStep() {
     let bestGuessCell = null; let bestGuessProb = 2.0; let expectedMinesInFrontier = 0;
     
     for (let zone of zones) {
-        let fCells = zone.frontier;
-        let validConfigurations = 0;
-        let mineCounts = new Array(fCells.length).fill(0);
-        let maxOps = 30000; // 運算次數安全鎖，保證絕不卡死
-        let ops = 0;
-        let abortCSP = false;
-
-        // 優化：預先建立 Cell -> 影響的 Constraint 映射
-        let cellToConstraints = fCells.map(fc => 
-            zone.constraints.filter(cons => cons.cells.some(h => h.r === fc.r && h.c === fc.c))
-        );
+        let fCells = zone.frontier; let validConfigurations = 0; let mineCounts = new Array(fCells.length).fill(0);
+        let maxOps = 25000; let ops = 0; let abortCSP = false;
+        let cellToConstraints = fCells.map(fc => zone.constraints.filter(cons => cons.cells.some(h => h.r === fc.r && h.c === fc.c)));
 
         function backtrack(idx) {
             if (abortCSP) return;
-            if (ops++ > maxOps) { abortCSP = true; return; } // 超過負載，放棄精確求解
-
-            // 嚴格剪枝 (Pruning)：如果當前狀態已經不可能合法，立刻回頭
+            if (ops++ > maxOps) { abortCSP = true; return; }
             for (let c of zone.constraints) {
-                if (c.currentMines > c.req) return;
-                if (c.currentMines + c.unassigned < c.req) return;
+                if (c.currentMines > c.req || c.currentMines + c.unassigned < c.req) return;
             }
-
             if (idx === fCells.length) {
                 validConfigurations++;
                 for (let i = 0; i < fCells.length; i++) { if (fCells[i].assumedMine) mineCounts[i]++; }
                 return;
             }
-
-            let cell = fCells[idx];
-            let affected = cellToConstraints[idx];
-
-            // 假設是雷
-            cell.assumedMine = true;
-            affected.forEach(c => { c.currentMines++; c.unassigned--; });
+            let cell = fCells[idx]; let affected = cellToConstraints[idx];
+            cell.assumedMine = true; affected.forEach(c => { c.currentMines++; c.unassigned--; });
             backtrack(idx + 1);
-            affected.forEach(c => { c.currentMines--; c.unassigned++; }); // 復原
-
-            // 假設安全
-            cell.assumedMine = false;
-            affected.forEach(c => { c.unassigned--; });
+            affected.forEach(c => { c.currentMines--; c.unassigned++; });
+            
+            cell.assumedMine = false; affected.forEach(c => { c.unassigned--; });
             backtrack(idx + 1);
-            affected.forEach(c => { c.unassigned++; }); // 復原
+            affected.forEach(c => { c.unassigned++; });
         }
-
         backtrack(0);
 
         if (!abortCSP && validConfigurations > 0) {
             let zoneExpectedSum = 0;
             for (let i = 0; i < fCells.length; i++) {
-                let cell = fCells[i];
-                let prob = mineCounts[i] / validConfigurations;
+                let cell = fCells[i]; let prob = mineCounts[i] / validConfigurations;
                 zoneExpectedSum += prob;
                 if (mineCounts[i] === 0) safeMoves.push(cell);
                 else if (mineCounts[i] === validConfigurations) mineMoves.push(cell);
-                else {
-                    if (prob < bestGuessProb) { bestGuessProb = prob; bestGuessCell = cell; }
-                }
+                else if (prob < bestGuessProb) { bestGuessProb = prob; bestGuessCell = cell; }
             }
             expectedMinesInFrontier += zoneExpectedSum;
         } else {
-            // 如果 CSP 負載過大被中斷，退回簡易機率計算
             let simpleProb = zone.constraints[0].req / zone.constraints[0].cells.length;
-            expectedMinesInFrontier += zone.constraints[0].req; // 粗估
-            let cell = zone.constraints[0].cells[0];
-            if (simpleProb < bestGuessProb) { bestGuessProb = simpleProb; bestGuessCell = cell; }
+            expectedMinesInFrontier += zone.constraints[0].req;
+            if (simpleProb < bestGuessProb) { bestGuessProb = simpleProb; bestGuessCell = zone.constraints[0].cells[0]; }
         }
     }
     
-    // 執行 100% 確定的操作 (只取第一個，避免因連續點擊改變盤面狀態)
-    if (safeMoves.length > 0) { countLeftClicks++; revealCell(safeMoves[0].r, safeMoves[0].c); return true; }
-    if (mineMoves.length > 0) { countRightClicks++; flagCell(mineMoves[0].r, mineMoves[0].c); return true; }
+    if (safeMoves.length > 0) { countLeftClicks++; revealCell(safeMoves[0].r, safeMoves[0].c); checkWinCondition(); return safeMoves[0]; }
+    if (mineMoves.length > 0) { countRightClicks++; flagCell(mineMoves[0].r, mineMoves[0].c); checkWinCondition(); return mineMoves[0]; }
     
-    // 【第四刀】機率對決盲猜
+    // 第四刀 (絕望盲猜)
     countGuesses++;
     let backgroundCells = [];
     for (let r = 0; r < ROWS; r++) {
@@ -556,46 +579,79 @@ function aiPlayStep() {
     
     if (backgroundCells.length > 0 && backgroundProb < bestGuessProb) {
         let bgCell = backgroundCells[Math.floor(Math.random() * backgroundCells.length)];
-        countLeftClicks++; revealCell(bgCell.r, bgCell.c); return true;
+        countLeftClicks++; revealCell(bgCell.r, bgCell.c); checkWinCondition(); return bgCell;
     } else if (bestGuessCell) {
-        countLeftClicks++; revealCell(bestGuessCell.r, bestGuessCell.c); return true;
+        countLeftClicks++; revealCell(bestGuessCell.r, bestGuessCell.c); checkWinCondition(); return bestGuessCell;
     }
     
-    return false;
+    return null;
 }
 
-const speedSlider = document.getElementById('speed-slider');
-const speedText = document.getElementById('speed-text');
+// =========================================================
+//   超頻批次控制迴圈 (Batching Loop)
+// =========================================================
 
-function getDelayFromSlider(val) {
-    if (val > 100) return 0; return Math.floor(2000 / val);
+function stopAutoPlay() {
+    isAutoPlaying = false;
+    if (loopTimeout) {
+        cancelAnimationFrame(loopTimeout);
+        clearTimeout(loopTimeout);
+        loopTimeout = null;
+    }
+    btnLoop.innerText = "自動解題 (Auto Play)";
 }
 
-speedSlider.addEventListener('input', () => {
+function processAutoPlayTick() {
+    if (!isAutoPlaying) return;
+    
     const val = parseInt(speedSlider.value);
-    if (val > 100) speedText.innerText = "光速破解 (非同步)";
-    else speedText.innerText = `${getDelayFromSlider(val)}ms`;
+    let lastActionTarget = null;
+    
+    // 一般模式 (包含延遲)
+    if (val <= 100) {
+        lastActionTarget = aiPlayStep();
+        if (!lastActionTarget || gameOver || gameWon) { stopAutoPlay(); return; }
+        
+        if (cameraFollow && lastActionTarget) scrollToCell(lastActionTarget.r, lastActionTarget.c);
+        loopTimeout = setTimeout(processAutoPlayTick, Math.floor(2000 / val));
+    } 
+    // 超頻批次模式 (Batching)
+    else {
+        let stepsLimit = val === 200 ? 9999 : (val - 90); // 每次 Tick 執行的步數上限
+        let startTime = performance.now();
+        
+        while (stepsLimit > 0 && isAutoPlaying && !gameOver && !gameWon) {
+            lastActionTarget = aiPlayStep();
+            if (!lastActionTarget) { stopAutoPlay(); break; }
+            stepsLimit--;
+            
+            // 預防畫面凍結：每幀最多佔用 12ms 運算
+            if (performance.now() - startTime > 12) break; 
+        }
+        
+        // 批次運算完畢後，鏡頭只對焦最後一步，避免畫面劇烈抖動
+        if (cameraFollow && lastActionTarget) scrollToCell(lastActionTarget.r, lastActionTarget.c);
+        
+        if (isAutoPlaying && !gameOver && !gameWon) {
+            loopTimeout = requestAnimationFrame(processAutoPlayTick);
+        } else {
+            stopAutoPlay();
+        }
+    }
+}
+
+document.getElementById('btn-step').addEventListener('click', () => {
+    let target = aiPlayStep();
+    if(target && cameraFollow) scrollToCell(target.r, target.c);
 });
 
-// 重寫迴圈，使用 setTimeout 讓瀏覽器在 0ms 時也能渲染 UI，徹底防卡死
-function autoPlayLoop() {
-    let moved = aiPlayStep();
-    if (!moved || gameOver || gameWon) {
-        loopTimeout = null; document.getElementById('btn-loop').innerText = "自動解題 (Auto Play)"; return;
-    }
-    const delay = getDelayFromSlider(parseInt(speedSlider.value));
-    
-    // 即使 delay 是 0，也使用 setTimeout，讓 JS 引擎有空檔更新畫面，視覺效果極佳
-    loopTimeout = setTimeout(autoPlayLoop, delay);
-}
-
-document.getElementById('btn-step').addEventListener('click', () => aiPlayStep());
-document.getElementById('btn-loop').addEventListener('click', () => {
-    const btn = document.getElementById('btn-loop');
-    if (loopTimeout) {
-        clearTimeout(loopTimeout); loopTimeout = null; btn.innerText = "自動解題 (Auto Play)";
+btnLoop.addEventListener('click', () => {
+    if (isAutoPlaying) {
+        stopAutoPlay();
     } else {
-        btn.innerText = "暫停 (Pause)"; autoPlayLoop();
+        isAutoPlaying = true;
+        btnLoop.innerText = "暫停 (Pause)";
+        processAutoPlayTick();
     }
 });
 
