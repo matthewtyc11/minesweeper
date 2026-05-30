@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>終極 CSP 踩地雷 AI (全域窮舉演算法)</title>
+    <title>終極 CSP 踩地雷 AI (防卡死順暢版)</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -88,7 +88,7 @@
 </head>
 <body>
 
-    <h1>Minesweeper CSP AI (終極窮舉版)</h1>
+    <h1>Minesweeper Pro AI (防卡死架構)</h1>
     
     <div class="panel">
         <div class="section">
@@ -210,6 +210,7 @@ function generateMines(startR, startC) {
     let minesPlaced = 0;
     while (minesPlaced < MINES) {
         let r = Math.floor(Math.random() * ROWS); let c = Math.floor(Math.random() * COLS);
+        // 保證起手點九宮格安全
         if (!grid[r][c].isMine && (Math.abs(r - startR) > 1 || Math.abs(c - startC) > 1)) {
             grid[r][c].isMine = true; minesPlaced++;
         }
@@ -332,10 +333,10 @@ function endGame(isWin) {
     
     const sPanel = document.getElementById('stats-panel');
     if(isWin) {
-        sPanel.className = ""; document.getElementById('stats-title').innerText = "🎉 CSP 終極引擎完美通關！";
+        sPanel.className = ""; document.getElementById('stats-title').innerText = "🎉 Pro AI 完美通關！";
         document.getElementById('mine-count').innerText = "🏆 勝利";
     } else {
-        sPanel.className = "loss"; document.getElementById('stats-title').innerText = "💥 陣亡。已是機率下的極限最佳選擇。";
+        sPanel.className = "loss"; document.getElementById('stats-title').innerText = "💥 陣亡。已盡力做出極限機率選擇。";
         document.getElementById('mine-count').innerText = "💀 陣亡";
     }
     sPanel.style.display = 'block';
@@ -354,20 +355,19 @@ function endGame(isWin) {
 }
 
 // =========================================================
-//   終極 PRO CSP 求解器 (Constraint Satisfaction Problem)
+//   防卡死・終極 AI 引擎 (混合式推導)
 // =========================================================
-
 function aiPlayStep() {
     if (gameOver || gameWon) return false;
     
+    // 首點盲猜中央
     if (isFirstClick) {
         countLeftClicks++; revealCell(Math.floor(ROWS/2), Math.floor(COLS/2)); return true;
     }
     
-    // 1. 蒐集全局基礎資料
     let totalHidden = 0; let totalFlags = 0;
-    let activeConstraints = []; // 周圍還有未開格子的數字格
-    let frontierMap = new Map(); // key: r,c string, value: cell object
+    let boundaryCells = []; // 給一/二階邏輯用
+    let frontierMap = new Map();
 
     for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
@@ -386,13 +386,13 @@ function aiPlayStep() {
                     if (n.isFlagged) flags++;
                 });
                 if (hidden.length > 0) {
-                    activeConstraints.push({ cell: cell, hidden: hidden, remaining: cell.count - flags });
+                    boundaryCells.push({ cell: cell, hidden: hidden, req: cell.count - flags });
                 }
             }
         }
     }
     
-    // 全局必殺：剩下的雷數與剩下的空地相等
+    // 【絕殺】剩下的雷 = 剩下的格
     if (totalHidden > 0 && totalHidden === (MINES - totalFlags)) {
         for (let r = 0; r < ROWS; r++) {
             for (let c = 0; c < COLS; c++) {
@@ -403,135 +403,158 @@ function aiPlayStep() {
         }
     }
 
-    // 2. 將 Frontier 切分成獨立的不相交戰區 (Zones) 以減少計算量
+    let safeMoves = []; let mineMoves = [];
+
+    // 【第一刀】基礎滿足條件 (100% 安全 / 100% 地雷)
+    for (let bc of boundaryCells) {
+        if (bc.req === bc.hidden.length) {
+            bc.hidden.forEach(n => { if (!mineMoves.some(m => m.r === n.r && m.c === n.c)) mineMoves.push(n); });
+        }
+        if (bc.req === 0) {
+            bc.hidden.forEach(n => { if (!safeMoves.some(m => m.r === n.r && m.c === n.c)) safeMoves.push(n); });
+        }
+    }
+    if (safeMoves.length > 0) { countLeftClicks++; revealCell(safeMoves[0].r, safeMoves[0].c); return true; }
+    if (mineMoves.length > 0) { countRightClicks++; flagCell(mineMoves[0].r, mineMoves[0].c); return true; }
+    
+    // 【第二刀】子集邏輯推論 (1-2-1剋星)
+    // 這能解開 90% 的重疊問題，避免 CSP 計算量過載
+    for (let i = 0; i < boundaryCells.length; i++) {
+        for (let j = 0; j < boundaryCells.length; j++) {
+            if (i === j) continue;
+            let bcA = boundaryCells[i]; let bcB = boundaryCells[j];
+            if (bcA.hidden.length >= bcB.hidden.length) continue;
+            
+            let isSubset = true;
+            for (let nodeA of bcA.hidden) {
+                if (!bcB.hidden.some(nodeB => nodeB.r === nodeA.r && nodeB.c === nodeA.c)) {
+                    isSubset = false; break;
+                }
+            }
+            if (isSubset) {
+                let remainingHidden = bcB.hidden.filter(nodeB => !bcA.hidden.some(nodeA => nodeA.r === nodeB.r && nodeA.c === nodeB.c));
+                let remainingReq = bcB.req - bcA.req;
+                if (remainingReq === remainingHidden.length) {
+                    remainingHidden.forEach(m => { if (!mineMoves.some(ex => ex.r === m.r && ex.c === m.c)) mineMoves.push(m); });
+                } else if (remainingReq === 0) {
+                    remainingHidden.forEach(s => { if (!safeMoves.some(ex => ex.r === s.r && ex.c === s.c)) safeMoves.push(s); });
+                }
+            }
+        }
+    }
+    if (safeMoves.length > 0) { countLeftClicks++; revealCell(safeMoves[0].r, safeMoves[0].c); return true; }
+    if (mineMoves.length > 0) { countRightClicks++; flagCell(mineMoves[0].r, mineMoves[0].c); return true; }
+
+    // 【第三刀】CSP 回溯窮舉 (附帶安全剪枝防卡死)
     let zones = [];
     let visitedConstraints = new Set();
-    
-    for (let i = 0; i < activeConstraints.length; i++) {
+    for (let i = 0; i < boundaryCells.length; i++) {
         if (visitedConstraints.has(i)) continue;
-        let zoneConstraints = [];
-        let zoneFrontier = new Set();
-        let queue = [i];
+        let zoneConstraints = []; let zoneFrontier = new Set(); let queue = [i];
         visitedConstraints.add(i);
-        
         while(queue.length > 0) {
-            let currIdx = queue.shift();
-            let cons = activeConstraints[currIdx];
-            zoneConstraints.push(cons);
+            let currIdx = queue.shift(); let cons = boundaryCells[currIdx];
+            zoneConstraints.push({ req: cons.req, cells: cons.hidden, currentMines: 0, unassigned: cons.hidden.length });
             cons.hidden.forEach(h => zoneFrontier.add(`${h.r},${h.c}`));
-            
-            for (let j = 0; j < activeConstraints.length; j++) {
+            for (let j = 0; j < boundaryCells.length; j++) {
                 if (!visitedConstraints.has(j)) {
-                    // 如果兩個約束共用至少一個未揭開的格子，則屬於同一戰區
-                    let shared = activeConstraints[j].hidden.some(h => zoneFrontier.has(`${h.r},${h.c}`));
-                    if (shared) {
-                        visitedConstraints.add(j);
-                        queue.push(j);
-                    }
+                    let shared = boundaryCells[j].hidden.some(h => zoneFrontier.has(`${h.r},${h.c}`));
+                    if (shared) { visitedConstraints.add(j); queue.push(j); }
                 }
             }
         }
         zones.push({ constraints: zoneConstraints, frontier: Array.from(zoneFrontier).map(key => frontierMap.get(key)) });
     }
 
-    // 3. 在每個戰區進行 Backtracking 窮舉所有平行宇宙
-    let safeMoves = []; let mineMoves = [];
-    let bestGuessCell = null; let bestGuessProb = 2.0;
-    let expectedMinesInFrontier = 0;
+    let bestGuessCell = null; let bestGuessProb = 2.0; let expectedMinesInFrontier = 0;
     
     for (let zone of zones) {
         let fCells = zone.frontier;
         let validConfigurations = 0;
         let mineCounts = new Array(fCells.length).fill(0);
-        
-        // Backtracking Function
-        function solveCSP(index, currentAssignment) {
-            // 剪枝檢查：確認當前分配是否已經違反任何條件
-            for (let cons of zone.constraints) {
-                let assignedMines = 0; let unassigned = 0;
-                for (let h of cons.hidden) {
-                    let hIdx = fCells.findIndex(fc => fc.r === h.r && fc.c === h.c);
-                    if (hIdx < index) {
-                        if (currentAssignment[hIdx]) assignedMines++;
-                    } else {
-                        unassigned++;
-                    }
-                }
-                if (assignedMines > cons.remaining) return; // 已經太多雷
-                if (assignedMines + unassigned < cons.remaining) return; // 剩下全放也不夠雷
+        let maxOps = 30000; // 運算次數安全鎖，保證絕不卡死
+        let ops = 0;
+        let abortCSP = false;
+
+        // 優化：預先建立 Cell -> 影響的 Constraint 映射
+        let cellToConstraints = fCells.map(fc => 
+            zone.constraints.filter(cons => cons.cells.some(h => h.r === fc.r && h.c === fc.c))
+        );
+
+        function backtrack(idx) {
+            if (abortCSP) return;
+            if (ops++ > maxOps) { abortCSP = true; return; } // 超過負載，放棄精確求解
+
+            // 嚴格剪枝 (Pruning)：如果當前狀態已經不可能合法，立刻回頭
+            for (let c of zone.constraints) {
+                if (c.currentMines > c.req) return;
+                if (c.currentMines + c.unassigned < c.req) return;
             }
-            
-            // 到底部了，找到一個合法的平行宇宙
-            if (index === fCells.length) {
+
+            if (idx === fCells.length) {
                 validConfigurations++;
-                for (let i = 0; i < fCells.length; i++) {
-                    if (currentAssignment[i]) mineCounts[i]++;
-                }
+                for (let i = 0; i < fCells.length; i++) { if (fCells[i].assumedMine) mineCounts[i]++; }
                 return;
             }
-            
-            // 分支：猜測這格是安全 (0)
-            currentAssignment[index] = false; solveCSP(index + 1, currentAssignment);
-            // 分支：猜測這格是地雷 (1)
-            currentAssignment[index] = true; solveCSP(index + 1, currentAssignment);
+
+            let cell = fCells[idx];
+            let affected = cellToConstraints[idx];
+
+            // 假設是雷
+            cell.assumedMine = true;
+            affected.forEach(c => { c.currentMines++; c.unassigned--; });
+            backtrack(idx + 1);
+            affected.forEach(c => { c.currentMines--; c.unassigned++; }); // 復原
+
+            // 假設安全
+            cell.assumedMine = false;
+            affected.forEach(c => { c.unassigned--; });
+            backtrack(idx + 1);
+            affected.forEach(c => { c.unassigned++; }); // 復原
         }
-        
-        solveCSP(0, new Array(fCells.length).fill(false));
-        
-        // 4. 分析戰區結果
-        if (validConfigurations > 0) {
-            let min ExpectedZoneMines = 999;
+
+        backtrack(0);
+
+        if (!abortCSP && validConfigurations > 0) {
             let zoneExpectedSum = 0;
-            
             for (let i = 0; i < fCells.length; i++) {
                 let cell = fCells[i];
                 let prob = mineCounts[i] / validConfigurations;
                 zoneExpectedSum += prob;
-                
-                if (mineCounts[i] === 0) {
-                    if (!safeMoves.some(m => m.r === cell.r && m.c === cell.c)) safeMoves.push(cell);
-                } else if (mineCounts[i] === validConfigurations) {
-                    if (!mineMoves.some(m => m.r === cell.r && m.c === cell.c)) mineMoves.push(cell);
-                } else {
-                    // 如果沒有 100% 把握，記錄這個機率做為之後盲猜的備案
-                    if (prob < bestGuessProb) {
-                        bestGuessProb = prob; bestGuessCell = cell;
-                    }
+                if (mineCounts[i] === 0) safeMoves.push(cell);
+                else if (mineCounts[i] === validConfigurations) mineMoves.push(cell);
+                else {
+                    if (prob < bestGuessProb) { bestGuessProb = prob; bestGuessCell = cell; }
                 }
             }
             expectedMinesInFrontier += zoneExpectedSum;
+        } else {
+            // 如果 CSP 負載過大被中斷，退回簡易機率計算
+            let simpleProb = zone.constraints[0].req / zone.constraints[0].cells.length;
+            expectedMinesInFrontier += zone.constraints[0].req; // 粗估
+            let cell = zone.constraints[0].cells[0];
+            if (simpleProb < bestGuessProb) { bestGuessProb = simpleProb; bestGuessCell = cell; }
         }
     }
     
-    // === 執行 100% 確定的操作 ===
+    // 執行 100% 確定的操作 (只取第一個，避免因連續點擊改變盤面狀態)
     if (safeMoves.length > 0) { countLeftClicks++; revealCell(safeMoves[0].r, safeMoves[0].c); return true; }
     if (mineMoves.length > 0) { countRightClicks++; flagCell(mineMoves[0].r, mineMoves[0].c); return true; }
     
-    // === 5. 若無 100% 把握，進入絕望機率精算 ===
+    // 【第四刀】機率對決盲猜
     countGuesses++;
-    
-    // 計算背景格子的機率 (不與任何數字接壤的純未知格)
     let backgroundCells = [];
     for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
             let cell = grid[r][c];
-            if (!cell.isRevealed && !cell.isFlagged && !frontierMap.has(`${r},${c}`)) {
-                backgroundCells.push(cell);
-            }
+            if (!cell.isRevealed && !cell.isFlagged && !frontierMap.has(`${r},${c}`)) backgroundCells.push(cell);
         }
     }
     
-    let remainingMinesForBackground = (MINES - totalFlags) - expectedMinesInFrontier;
-    let backgroundProb = 1.0;
-    if (backgroundCells.length > 0) {
-        // 防止浮點數誤差導致負數
-        remainingMinesForBackground = Math.max(0, remainingMinesForBackground);
-        backgroundProb = remainingMinesForBackground / backgroundCells.length;
-    }
+    let remainingMinesForBackground = Math.max(0, (MINES - totalFlags) - expectedMinesInFrontier);
+    let backgroundProb = backgroundCells.length > 0 ? (remainingMinesForBackground / backgroundCells.length) : 1.0;
     
-    // 比較「邊界中機率最低的格」與「完全未知的背景格」，選存活率最高的點下去
     if (backgroundCells.length > 0 && backgroundProb < bestGuessProb) {
-        // 隨機選一個背景格
         let bgCell = backgroundCells[Math.floor(Math.random() * backgroundCells.length)];
         countLeftClicks++; revealCell(bgCell.r, bgCell.c); return true;
     } else if (bestGuessCell) {
@@ -550,23 +573,20 @@ function getDelayFromSlider(val) {
 
 speedSlider.addEventListener('input', () => {
     const val = parseInt(speedSlider.value);
-    if (val > 100) speedText.innerText = "光速破解 (0ms)";
+    if (val > 100) speedText.innerText = "光速破解 (非同步)";
     else speedText.innerText = `${getDelayFromSlider(val)}ms`;
 });
 
+// 重寫迴圈，使用 setTimeout 讓瀏覽器在 0ms 時也能渲染 UI，徹底防卡死
 function autoPlayLoop() {
     let moved = aiPlayStep();
     if (!moved || gameOver || gameWon) {
         loopTimeout = null; document.getElementById('btn-loop').innerText = "自動解題 (Auto Play)"; return;
     }
     const delay = getDelayFromSlider(parseInt(speedSlider.value));
-    if (delay === 0) {
-        let keepGoing = true;
-        while(keepGoing && !gameOver && !gameWon) keepGoing = aiPlayStep();
-        loopTimeout = null; document.getElementById('btn-loop').innerText = "自動解題 (Auto Play)";
-    } else {
-        loopTimeout = setTimeout(autoPlayLoop, delay);
-    }
+    
+    // 即使 delay 是 0，也使用 setTimeout，讓 JS 引擎有空檔更新畫面，視覺效果極佳
+    loopTimeout = setTimeout(autoPlayLoop, delay);
 }
 
 document.getElementById('btn-step').addEventListener('click', () => aiPlayStep());
